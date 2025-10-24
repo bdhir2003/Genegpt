@@ -1,33 +1,45 @@
 # openai_client.py
+
 import streamlit as st
 from openai import OpenAI
 
-# grab the key from Streamlit Secrets
-# (make sure in Streamlit Cloud you added OPENAI_API_KEY="sk-proj-.....")
-_api_key = st.secrets["OPENAI_API_KEY"]
+# 1. Load key securely from Streamlit Secrets
+#    In Streamlit Cloud, you must have:
+#    OPENAI_API_KEY="sk-proj-xxxx..."
+#    in the Secrets editor.
+api_key = st.secrets.get("OPENAI_API_KEY", None)
 
-# build one client
-client = OpenAI(api_key=_api_key)
+if not api_key:
+    # If we don't have a key at all, raise so app_streamlit catches it
+    raise RuntimeError(
+        "OPENAI_API_KEY is missing from Streamlit secrets. "
+        "Set it in the Streamlit Cloud 'Secrets' panel like:\n"
+        'OPENAI_API_KEY="sk-proj-...."'
+    )
+
+# 2. Build OpenAI client
+client = OpenAI(api_key=api_key)
 
 def simplify_text_for_patient(structured_text: str) -> str:
     """
-    Takes the structured 5-part answer (what is it / what is known / not medical advice / etc.)
-    and asks the model to rewrite it in calm, simple language for a non-technical person.
-    Returns just the simplified text string.
+    Take the structured genetic explanation (answer_text)
+    and rewrite it in calm, simple, non-medical-advice language.
     """
 
-    # You can tune this prompt however you like, but keep it safe and not medical-advice-y.
     prompt = f"""
 You are a genetics explainer for patients.
-Rewrite the following information in clear 8th-grade English.
-Do NOT give medical advice, do NOT tell them what treatment to do,
-and remind them to speak to a clinician for any decisions.
+
+Rewrite the information below so a non-technical adult can understand it
+(about an 8th grade reading level). Keep it calm and factual.
+Do NOT give medical advice, do NOT suggest treatment,
+do NOT say what will happen in the future.
+Remind them to talk to a clinician for personal guidance.
 
 Text to rewrite:
-\"\"\"{structured_text}\"\"\" 
+\"\"\"{structured_text}\"\"\"
     """.strip()
 
-    # Call the Responses API
+    # 3. Call OpenAI
     resp = client.responses.create(
         model="gpt-5-thinking",
         input=[
@@ -38,10 +50,13 @@ Text to rewrite:
         ],
     )
 
-    # Extract the text part from the response
+    # 4. Extract the text from the response safely
     try:
         simplified = resp.output[0].content[0].text
     except Exception:
-        simplified = "I couldn't summarize that in plain language."
+        simplified = (
+            "I couldn't simplify that right now, but please read the structured explanation above "
+            "and talk to a qualified clinician."
+        )
 
     return simplified
