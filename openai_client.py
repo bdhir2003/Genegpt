@@ -1,40 +1,47 @@
 # openai_client.py
-import os
+import streamlit as st
 from openai import OpenAI
-from dotenv import load_dotenv
 
-# Load environment variables from .env file
-load_dotenv()
+# grab the key from Streamlit Secrets
+# (make sure in Streamlit Cloud you added OPENAI_API_KEY="sk-proj-.....")
+_api_key = st.secrets["OPENAI_API_KEY"]
 
-# Create the OpenAI client using the key in .env
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+# build one client
+client = OpenAI(api_key=_api_key)
 
-def simplify_text_for_patient(full_answer_text: str) -> str:
+def simplify_text_for_patient(structured_text: str) -> str:
     """
-    Take the structured, factual answer (the 5-part output),
-    and rewrite it in gentle, clear, 8th-grade-level English.
-    We DO NOT want diagnosis, and we DO want safety language.
+    Takes the structured 5-part answer (what is it / what is known / not medical advice / etc.)
+    and asks the model to rewrite it in calm, simple language for a non-technical person.
+    Returns just the simplified text string.
     """
 
+    # You can tune this prompt however you like, but keep it safe and not medical-advice-y.
     prompt = f"""
-You are a careful medical explainer. Rewrite the text below in simple, friendly language
-for a non-medical person. Keep it short. Do not add any medical promises, do not guess,
-do not say they have a disease. Remind them to talk to a clinician.
+You are a genetics explainer for patients.
+Rewrite the following information in clear 8th-grade English.
+Do NOT give medical advice, do NOT tell them what treatment to do,
+and remind them to speak to a clinician for any decisions.
 
 Text to rewrite:
-\"\"\" 
-{full_answer_text}
-\"\"\"
-"""
+\"\"\"{structured_text}\"\"\" 
+    """.strip()
 
-    response = client.chat.completions.create(
-        model="gpt-3.5-turbo",
-        temperature=0.3,  # keep it steady, not creative
-        messages=[
-            {"role": "system",
-             "content": "You are a genetics helper. You speak calmly, clearly, and safely. You never diagnose."},
-            {"role": "user", "content": prompt}
-        ]
+    # Call the Responses API
+    resp = client.responses.create(
+        model="gpt-5-thinking",
+        input=[
+            {
+                "role": "user",
+                "content": prompt,
+            }
+        ],
     )
 
-    return response.choices[0].message.content.strip()
+    # Extract the text part from the response
+    try:
+        simplified = resp.output[0].content[0].text
+    except Exception:
+        simplified = "I couldn't summarize that in plain language."
+
+    return simplified
