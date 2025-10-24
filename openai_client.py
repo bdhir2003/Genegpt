@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Create the OpenAI client using the key in .env
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY=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"))
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 def simplify_text_for_patient(full_answer_text: str) -> str:
     """
