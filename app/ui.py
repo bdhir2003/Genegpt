@@ -1,8 +1,7 @@
 # ui.py – Streamlit front-end for GeneGPT v1
 
 import streamlit as st
-from pipeline import run_genegpt_pipeline  # adjust path if your ui.py is inside app/
-
+from app.pipeline import run_genegpt_pipeline  # adjust path if your ui.py is inside app/
 
 def set_example(text: str):
     st.session_state["user_question"] = text
